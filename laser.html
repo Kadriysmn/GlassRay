@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔬 3D Snell's Law Ray Tracing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #0a0a1a;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+            border-bottom: 2px solid #2a5298;
+            padding-bottom: 10px;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            margin-bottom: 5px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2a5298;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #1e3c72;
+            transform: scale(1.2);
+        }
+        
+        .value-display {
+            text-align: center;
+            color: #2a5298;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+        
+        #start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
+        }
+        
+        #reset-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        #reset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            max-width: 320px;
+            z-index: 100;
+        }
+        
+        #info h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        #info p {
+            color: #555;
+            line-height: 1.6;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .camera-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #333;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+        
+        .emoji {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="info">
+        <h3>📐 Snell's Law (3D)</h3>
+        <p><strong>Vector Formula:</strong></p>
+        <p style="text-align: center; font-family: monospace; background: #f0f0f0; padding: 8px; border-radius: 5px; margin: 8px 0; font-size: 12px;">
+            T = ηI + (η cos θᵢ - √(1 - η²(1 - cos² θᵢ)))N
+        </p>
+        <p><span class="emoji">🔴</span> Red = Incident ray</p>
+        <p><span class="emoji">🟢</span> Green = Refracted (inside)</p>
+        <p><span class="emoji">🟡</span> Yellow = Exit ray</p>
+        <p><span class="emoji">💎</span> Glass cube (transparent)</p>
+    </div>
+    
+    <div id="controls">
+        <h2>🔬 Controls</h2>
+        
+        <div class="control-group">
+            <label>Incident Angle (°)</label>
+            <input type="range" id="angle-slider" min="-60" max="60" value="30" step="1">
+            <div class="value-display"><span id="angle-value">30</span>°</div>
+        </div>
+        
+        <div class="control-group">
+            <label>Refractive Index (η)</label>
+            <input type="range" id="eta-slider" min="1.0" max="2.5" value="1.5" step="0.1">
+            <div class="value-display"><span id="eta-value">1.5</span></div>
+        </div>
+        
+        <button id="start-btn">▶ Fire Laser</button>
+        <button id="reset-btn">↻ Reset View</button>
+    </div>
+    
+    <div class="camera-hint">
+        🖱️ <strong>Drag</strong> to rotate • <strong>Scroll</strong> to zoom • <strong>← →</strong> to adjust angle
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Setup Three.js
+        let scene, camera, renderer, controls;
+        let glassCube, incidentRay, refractedRay, exitRay;
+        let laserActive = false;
+        let currentAngle = 30;
+        let currentEta = 1.5;
+        
+        // Mouse control variables
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraRotation = { x: 0.5, y: 0.8 };
+        let cameraDistance = 8;
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(
+                60, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            updateCameraPosition();
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0xffffff, 0.5);
+            pointLight.position.set(-5, 3, -5);
+            scene.add(pointLight);
+            
+            // Create scene elements
+            createGlassCube();
+            createGrid();
+            createAxes();
+            
+            // Mouse controls
+            setupMouseControls();
+            
+            // Animation loop
+            animate();
+        }
+        
+        function updateCameraPosition() {
+            camera.position.x = cameraDistance * Math.sin(cameraRotation.y) * Math.cos(cameraRotation.x);
+            camera.position.y = cameraDistance * Math.sin(cameraRotation.x);
+            camera.position.z = cameraDistance * Math.cos(cameraRotation.y) * Math.cos(cameraRotation.x);
+            camera.lookAt(0, 0, 0);
+        }
+        
+        function setupMouseControls() {
+            const container = renderer.domElement;
+            
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            container.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+                    
+                    cameraRotation.y += deltaX * 0.01;
+                    cameraRotation.x += deltaY * 0.01;
+                    
+                    // Clamp vertical rotation
+                    cameraRotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraRotation.x));
+                    
+                    updateCameraPosition();
+                    
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+            
+            container.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            container.addEventListener('mouseleave', () => {
+                isDragging = false;
+            });
+            
+            // Zoom with scroll
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                cameraDistance += e.deltaY * 0.01;
+                cameraDistance = Math.max(3, Math.min(15, cameraDistance));
+                updateCameraPosition();
+            });
+        }
+        
+        function createGrid() {
+            const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+        }
+        
+        function createAxes() {
+            const axesHelper = new THREE.AxesHelper(3);
+            scene.add(axesHelper);
+        }
+        
+        function createGlassCube() {
+            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const material = new THREE.MeshPhysicalMaterial({
+                color: 0x88ccff,
+                transparent: true,
+                opacity: 0.25,
+                metalness: 0,
+                roughness: 0.1,
+                transmission: 0.9,
+                thickness: 0.5,
+            });
+            
+            glassCube = new THREE.Mesh(geometry, material);
+            glassCube.position.set(0, 0, 0);
+            
+            // Add edges
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x4488ff, 
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+            const wireframe = new THREE.LineSegments(edges, lineMaterial);
+            glassCube.add(wireframe);
+            
+            scene.add(glassCube);
+        }
+        
+        function createLaserRay(points, color) {
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ 
+                color: color,
+                linewidth: 3,
+                transparent: true,
+                opacity: 0.9
+            });
+            return new THREE.Line(geometry, material);
+        }
+        
+        function normalize(v) {
+            const length = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+            if (length === 0) return new THREE.Vector3(0, 0, 0);
+            return new THREE.Vector3(v.x / length, v.y / length, v.z / length);
+        }
+        
+        function calculateRefraction(incidentDir, normal, eta) {
+            const I = normalize(incidentDir);
+            const N = normalize(normal);
+            
+            const cosI = -N.dot(I);
+            const discriminant = 1 - eta * eta * (1 - cosI * cosI);
+            
+            if (discriminant < 0) {
+                return null; // Total internal reflection
+            }
+            
+            const cosTerm = eta * cosI - Math.sqrt(discriminant);
+            const T = new THREE.Vector3(
+                eta * I.x + cosTerm * N.x,
+                eta * I.y + cosTerm * N.y,
+                eta * I.z + cosTerm * N.z
+            );
+            
+            return normalize(T);
+        }
+        
+        function shootLaser() {
+            // Remove old rays
+            if (incidentRay) scene.remove(incidentRay);
+            if (refractedRay) scene.remove(refractedRay);
+            if (exitRay) scene.remove(exitRay);
+            
+            const cubeSize = 2;
+            
+            // Starting point (LEFT side, coming horizontally)
+            const startPoint = new THREE.Vector3(-4, 0, 0);
+            
+            // Incident direction - angle from horizontal (0° = straight horizontal)
+            const angleRad = (currentAngle * Math.PI) / 180;
+            const incidentDir = new THREE.Vector3(
+                Math.cos(angleRad),  // Horizontal component
+                Math.sin(angleRad),  // Vertical component
+                0
+            );
+            
+            // Left surface intersection (entering the cube from the left)
+            const intersectionLeft = new THREE.Vector3(-cubeSize / 2, 0, 0);
+            
+            // Draw incident ray (RED)
+            const incidentPoints = [startPoint, intersectionLeft];
+            incidentRay = createLaserRay(incidentPoints, 0xff3333);
+            scene.add(incidentRay);
+            
+            // Surface normal (pointing LEFT/outward from cube)
+            const normalLeft = new THREE.Vector3(-1, 0, 0);
+            
+            // Calculate refracted direction (entering glass)
+            const refractedDir = calculateRefraction(incidentDir, normalLeft, currentEta);
+            
+            if (refractedDir) {
+                // Calculate where ray exits the cube
+                // We need to find intersection with the right face
+                const t = (cubeSize / 2 - intersectionLeft.x) / refractedDir.x;
+                
+                const exitPoint = new THREE.Vector3(
+                    intersectionLeft.x + refractedDir.x * t,
+                    intersectionLeft.y + refractedDir.y * t,
+                    intersectionLeft.z + refractedDir.z * t
+                );
+                
+                // Clamp to cube boundaries
+                exitPoint.y = Math.max(-cubeSize/2, Math.min(cubeSize/2, exitPoint.y));
+                exitPoint.x = cubeSize / 2;
+                
+                // Draw refracted ray inside glass (GREEN)
+                const refractedPoints = [intersectionLeft, exitPoint];
+                refractedRay = createLaserRay(refractedPoints, 0x33ff33);
+                scene.add(refractedRay);
+                
+                // Normal at exit (pointing RIGHT/outward from cube)
+                const normalRight = new THREE.Vector3(1, 0, 0);
+                
+                // Calculate exit direction (leaving glass back to air)
+                const exitDir = calculateRefraction(refractedDir, normalRight, 1.0 / currentEta);
+                
+                if (exitDir) {
+                    // Final exit point
+                    const finalPoint = new THREE.Vector3(
+                        exitPoint.x + exitDir.x * 2.5,
+                        exitPoint.y + exitDir.y * 2.5,
+                        exitPoint.z + exitDir.z * 2.5
+                    );
+                    
+                    // Draw exit ray (YELLOW)
+                    const exitPoints = [exitPoint, finalPoint];
+                    exitRay = createLaserRay(exitPoints, 0xffff33);
+                    scene.add(exitRay);
+                } else {
+                    // Total internal reflection at exit
+                    console.log("Total internal reflection at exit!");
+                }
+            } else {
+                // Total internal reflection at entry (shouldn't happen when entering from air)
+                console.log("Total internal reflection at entry!");
+            }
+            
+            laserActive = true;
+        }
+        
+        function resetScene() {
+            if (incidentRay) scene.remove(incidentRay);
+            if (refractedRay) scene.remove(refractedRay);
+            if (exitRay) scene.remove(exitRay);
+            
+            currentAngle = 30;
+            currentEta = 1.5;
+            cameraRotation = { x: 0.5, y: 0.8 };
+            cameraDistance = 8;
+            
+            document.getElementById('angle-slider').value = 30;
+            document.getElementById('angle-value').textContent = 30;
+            document.getElementById('eta-slider').value = 1.5;
+            document.getElementById('eta-value').textContent = 1.5;
+            
+            updateCameraPosition();
+            laserActive = false;
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Slow rotation of glass cube
+            if (glassCube) {
+                glassCube.rotation.y += 0.002;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Event Listeners
+        document.getElementById('angle-slider').addEventListener('input', (e) => {
+            currentAngle = parseFloat(e.target.value);
+            document.getElementById('angle-value').textContent = currentAngle;
+            if (laserActive) shootLaser();
+        });
+        
+        document.getElementById('eta-slider').addEventListener('input', (e) => {
+            currentEta = parseFloat(e.target.value);
+            document.getElementById('eta-value').textContent = currentEta;
+            if (laserActive) shootLaser();
+        });
+        
+        document.getElementById('start-btn').addEventListener('click', () => {
+            shootLaser();
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            resetScene();
+        });
+        
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                currentAngle = Math.max(-60, currentAngle - 5);
+                document.getElementById('angle-slider').value = currentAngle;
+                document.getElementById('angle-value').textContent = currentAngle;
+                if (laserActive) shootLaser();
+            } else if (e.key === 'ArrowRight') {
+                currentAngle = Math.min(60, currentAngle + 5);
+                document.getElementById('angle-slider').value = currentAngle;
+                document.getElementById('angle-value').textContent = currentAngle;
+                if (laserActive) shootLaser();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                shootLaser();
+            } else if (e.key === 'r' || e.key === 'R') {
+                resetScene();
+            }
+        });
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
