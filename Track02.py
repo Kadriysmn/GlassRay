@@ -7,9 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.patheffects as pe
 
-# ─────────────────────────────────────────────
-#    COLORS & FONTS (Disney Look)
-# ─────────────────────────────────────────────
+
 COLORS = {
     "bg_top":       "#050a14",   
     "bg_bottom":    "#0a121e",   
@@ -155,4 +153,5 @@ class ModernTIR:
 if __name__ == "__main__":
     root = tk.Tk()
     app = ModernTIR(root)
+
     root.mainloop()
