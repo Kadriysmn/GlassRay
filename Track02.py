@@ -99,7 +99,7 @@ def _section_styled(parent, title):
 class ModernTIR:
     def __init__(self, root):
         self.root = root
-        root.title("Disney Cinematic Refractometer")
+        root.title("track2 The Chemical Lock (Total Internal Reflection)")
         root.geometry("1100x750")
         root.configure(bg=COLORS["panel_bg"])
 
@@ -155,3 +155,4 @@ if __name__ == "__main__":
     app = ModernTIR(root)
 
     root.mainloop()
+
